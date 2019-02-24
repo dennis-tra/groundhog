@@ -1,66 +1,90 @@
 import os
+import time
 import datetime
-import json
-import gspread
+import logging
 from telegram import Bot, ReplyKeyboardMarkup, Update
 from telegram.ext import Updater, Job, MessageHandler, Filters
-from oauth2client.service_account import ServiceAccountCredentials
 from dotenv import load_dotenv
 
-load_dotenv()
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
-chat_id = os.getenv("TELEGRAM_CHAT_ID")
-api_token = os.getenv("TELEGRAM_API_TOKEN")
-spreadsheet_key = os.getenv("SPREADSHEET_KEY")
-service_account_cred_json = json.loads(os.getenv("SERVICE_ACCOUNT_CREDENTIALS"))
+from database import Database, GoogleSheet
 
-scope = ['https://spreadsheets.google.com/feeds']
-credentials = ServiceAccountCredentials.from_json_keyfile_dict(service_account_cred_json, scope)
-gc = gspread.authorize(credentials)
-
-book = gc.open_by_key(spreadsheet_key)
-worksheet = book.worksheet("Mood")
+answers = [
+    ["5: pumped, energized", "4: happy, excited"],
+    ["3: good, alright", "2: down, worried"],
+    ["1: Sad, unhappy", "0: Miserable, nervous"]
+]
 
 
-def ask_question(message: str):
-    answers = [
-        ["5: pumped, energized", "4: happy, excited"],
-        ["3: good, alright", "2: down, worried"],
-        ["1: Sad, unhappy", "0: Miserable, nervous"]
-    ]
+class TelegramHandler:
+    database: Database
 
-    def send_question(bot: Bot, job: Job):
-        keyboard = ReplyKeyboardMarkup(answers)
-        bot.send_message(chat_id, message, reply_markup=keyboard)
+    def __init__(self):
+        self.database = GoogleSheet.from_env()
 
-    return send_question
+        updater = Updater(self.api_token)
 
+        dp = updater.dispatcher
+        jq = updater.job_queue
 
-def handle_reply(bot: Bot, update: Update):
-    value, answer = update.message.text.split(":")
-    message = f"Thanks I'll note that you felt {answer.strip().lower()}."
-    bot.send_message(chat_id, message)
-    worksheet.append_row([datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), value, answer],
-                         value_input_option="USER_ENTERED")
+        dp.add_handler(MessageHandler(Filters.text, self.handle_reply))
+
+        jq.run_daily(self.ask_question("🌆 How are you feeling this morning?"), datetime.time(8))
+        jq.run_daily(self.ask_question("☀️ How are you feeling today?"), datetime.time(13))
+        jq.run_daily(self.ask_question("🌃 How happy were you with today?"), datetime.time(22))
+
+        jq.start()
+
+        updater.start_polling()
+        updater.idle()
+
+    def ask_question(self, message: str):
+        def send_question(bot: Bot, job: Job):
+            logger.info("asking mood question")
+            keyboard = ReplyKeyboardMarkup(answers)
+            bot.send_message(self.chat_id, message, reply_markup=keyboard)
+
+        return send_question
+
+    def handle_reply(self, bot: Bot, update: Update):
+        msg = update.message.text
+        try:
+            logger.info(f"parsing message: '{msg}'")
+
+            is_old = update.message.date < datetime.datetime.now() - datetime.timedelta(minutes=30)
+            value, answer = msg.split(":")
+
+            if not is_old:
+                message = f"Thanks I'll note that you're feeling {answer.strip().lower()}."
+                bot.send_message(self.chat_id, message)
+
+            self.database.save_mood(datetime.datetime.now(), value)
+
+        except ValueError:
+            logger.warning(f"message was not parsable: '{msg}'")
+            bot.send_message(self.chat_id, "Sorry, but I did not understand your input 😕")
+
+        except Exception as e:
+            logger.error("An unknown error occurred: ", e)
+
+    @property
+    def chat_id(self) -> str:
+        return os.getenv("TELEGRAM_CHAT_ID")
+
+    @property
+    def api_token(self) -> str:
+        return os.getenv("TELEGRAM_API_TOKEN")
 
 
 def main():
+    os.environ['TZ'] = 'Europe/Berlin'
+    time.tzset()
 
-    updater = Updater(api_token)
-
-    dp = updater.dispatcher
-    jq = updater.job_queue
-
-    dp.add_handler(MessageHandler(Filters.text, handle_reply))
-
-    jq.run_daily(ask_question("🌆 How are you feeling this morning?"), datetime.time(8))
-    jq.run_daily(ask_question("🏙 How are you feeling today?"), datetime.time(13))
-    jq.run_daily(ask_question("🌃 How happy were you with today?"), datetime.time(22))
-
-    jq.start()
-
-    updater.start_polling()
-    updater.idle()
+    load_dotenv()
+    TelegramHandler()
 
 
 if __name__ == "__main__":
