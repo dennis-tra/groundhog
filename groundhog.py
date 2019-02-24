@@ -3,20 +3,22 @@ import time
 import datetime
 import logging
 from telegram import Bot, ReplyKeyboardMarkup, Update
-from telegram.ext import Updater, Job, MessageHandler, Filters
+from telegram.ext import Updater, Job, MessageHandler, Filters, ConversationHandler, CommandHandler, RegexHandler
 from dotenv import load_dotenv
+
+from database import Database, GoogleSheet
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
-
-from database import Database, GoogleSheet
 
 answers = [
     ["5: pumped, energized", "4: happy, excited"],
     ["3: good, alright", "2: down, worried"],
     ["1: Sad, unhappy", "0: Miserable, nervous"]
 ]
+
+TEXT_NOTE = range(1)
 
 
 class TelegramHandler:
@@ -30,7 +32,16 @@ class TelegramHandler:
         dp = updater.dispatcher
         jq = updater.job_queue
 
-        dp.add_handler(MessageHandler(Filters.text, self.handle_reply))
+        dp.add_handler(RegexHandler("\d:\D*", self.handle_reply))
+
+        x = ConversationHandler(
+            entry_points=[CommandHandler("note", self.note)],
+            states={
+                TEXT_NOTE: [MessageHandler(Filters.text, self.save_note)]
+            },
+            fallbacks=[CommandHandler('cancel', self.cancel_note)]
+        )
+        dp.add_handler(x)
 
         jq.run_daily(self.ask_question("🌆 How are you feeling this morning?"), datetime.time(8))
         jq.run_daily(self.ask_question("☀️ How are you feeling today?"), datetime.time(13))
@@ -40,6 +51,19 @@ class TelegramHandler:
 
         updater.start_polling()
         updater.idle()
+
+    def save_note(self, bot: Bot, update: Update):
+        bot.send_message(self.chat_id, "Got it! I'll forever remember this note for you 📚")
+        self.database.save_note(update.message.text)
+        return ConversationHandler.END
+
+    def note(self, bot: Bot, update: Update):
+        update.message.reply_text("Alright, let me know what you want to note 📝")
+        return TEXT_NOTE
+
+    def cancel_note(self, bot: Bot, update: Update):
+        bot.send_message(self.chat_id, "No worries, I won't note anything.")
+        return ConversationHandler.END
 
     def ask_question(self, message: str):
         def send_question(bot: Bot, job: Job):
@@ -55,13 +79,26 @@ class TelegramHandler:
             logger.info(f"parsing message: '{msg}'")
 
             is_old = update.message.date < datetime.datetime.now() - datetime.timedelta(minutes=30)
-            value, answer = msg.split(":")
+            rating, answer = msg.split(":")
+            rating = int(rating)
 
-            if not is_old:
-                message = f"Thanks I'll note that you're feeling {answer.strip().lower()}."
-                bot.send_message(self.chat_id, message)
+            self.database.save_mood(rating)
 
-            self.database.save_mood(datetime.datetime.now(), value)
+            if is_old:
+                return
+
+            message = f"Got it! I'll note that you're feeling {answer.strip().lower()}."
+            update.message.reply_text(message)
+
+            if rating <= 1:
+                bad_mood_msg = "Feeling down sometimes is okay. Maybe take 2 minutes to reflect on why you're not " \
+                               "feeling better, and optionally add a /note. "
+                update.message.reply_text(bad_mood_msg)
+
+            if rating == 5:
+                good_mood = "💫 Awesome to hear, maybe take 2 minutes to reflect on why you're feeling great," \
+                            " and optionally add a /note."
+                update.message.reply_text(good_mood)
 
         except ValueError:
             logger.warning(f"message was not parsable: '{msg}'")
