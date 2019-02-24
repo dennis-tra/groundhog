@@ -13,7 +13,7 @@ RUN apk add --no-cache --virtual build-dependencies alpine-sdk libffi-dev openss
     && pipenv install --system --deploy \
     && apk del build-dependencies
 
-COPY groundhog.py /app
+COPY *.py /app/
 
 RUN pip uninstall pipenv virtualenv virtualenv-clone -y
 
