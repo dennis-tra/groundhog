@@ -44,6 +44,9 @@ class TelegramHandler:
         )
         dp.add_handler(note_handler)
 
+        stats_handler = CommandHandler("stats", self.stats)
+        dp.add_handler(stats_handler)
+
         jq.run_daily(self.ask_question("🌆 How are you feeling this morning?"), datetime.time(8))
         jq.run_daily(self.ask_question("☀️ How are you feeling today?"), datetime.time(13))
         jq.run_daily(self.ask_question("🌃 How happy were you with today?"), datetime.time(22))
@@ -52,6 +55,12 @@ class TelegramHandler:
 
         updater.start_polling()
         updater.idle()
+
+    def stats(self, bot: Bot, update: Update):
+        update.message.reply_text(f"Hang tight I'm calculating your statistics... 🧮")
+        moods = self.database.get_moods()
+
+        update.message.reply_text(f"Total tracked moods: {len(moods)}")
 
     def save_note(self, bot: Bot, update: Update):
         bot.send_message(self.chat_id, "Got it! I'll forever remember this note for you 📚")

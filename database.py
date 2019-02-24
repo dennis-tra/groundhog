@@ -1,7 +1,9 @@
 import os
 import json
 import datetime
+import dateparser
 import gspread
+from typing import List
 from gspread import Worksheet
 from abc import ABC, abstractmethod
 from oauth2client.service_account import ServiceAccountCredentials
@@ -19,6 +21,10 @@ class Database(ABC):
 
     @abstractmethod
     def save_note(self, note: str, date: datetime.date = datetime.datetime.now()):
+        pass
+
+    @abstractmethod
+    def get_moods(self) -> (List[datetime.datetime], List[int]):
         pass
 
 
@@ -56,3 +62,11 @@ class GoogleSheet(Database):
     def save_note(self, note: str, date: datetime.datetime = datetime.datetime.now()):
         row = [date.strftime(self.date_format), note]
         self.note_worksheet.append_row(row, value_input_option="USER_ENTERED")
+
+    def get_moods(self) -> (List[datetime.datetime], List[int]):
+
+        dates = list(map(lambda d: dateparser.parse(d), self.mood_worksheet.col_values(1)))
+        moods = list(map(int, self.mood_worksheet.col_values(2)))
+
+        return dates, moods
+
