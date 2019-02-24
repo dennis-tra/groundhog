@@ -32,16 +32,17 @@ class TelegramHandler:
         dp = updater.dispatcher
         jq = updater.job_queue
 
-        dp.add_handler(RegexHandler("\d:\D*", self.handle_reply))
+        mood_handler = RegexHandler(r"\d:\D*", self.handle_mood)
+        dp.add_handler(mood_handler)
 
-        x = ConversationHandler(
-            entry_points=[CommandHandler("note", self.note)],
+        note_handler = ConversationHandler(
+            entry_points=[CommandHandler("note", self.handle_note)],
             states={
                 TEXT_NOTE: [MessageHandler(Filters.text, self.save_note)]
             },
             fallbacks=[CommandHandler('cancel', self.cancel_note)]
         )
-        dp.add_handler(x)
+        dp.add_handler(note_handler)
 
         jq.run_daily(self.ask_question("🌆 How are you feeling this morning?"), datetime.time(8))
         jq.run_daily(self.ask_question("☀️ How are you feeling today?"), datetime.time(13))
@@ -57,7 +58,7 @@ class TelegramHandler:
         self.database.save_note(update.message.text)
         return ConversationHandler.END
 
-    def note(self, bot: Bot, update: Update):
+    def handle_note(self, bot: Bot, update: Update):
         update.message.reply_text("Alright, let me know what you want to note 📝")
         return TEXT_NOTE
 
@@ -73,7 +74,7 @@ class TelegramHandler:
 
         return send_question
 
-    def handle_reply(self, bot: Bot, update: Update):
+    def handle_mood(self, bot: Bot, update: Update):
         msg = update.message.text
         try:
             logger.info(f"parsing message: '{msg}'")
