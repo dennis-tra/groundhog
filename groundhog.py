@@ -64,7 +64,7 @@ class TelegramHandler:
 
     def save_note(self, bot: Bot, update: Update):
         bot.send_message(self.chat_id, "Got it! I'll forever remember this note for you 📚")
-        self.database.save_note(update.message.text)
+        self.database.save_note(update.message.text, datetime.datetime.now())
         return ConversationHandler.END
 
     def handle_note(self, bot: Bot, update: Update):
@@ -92,7 +92,7 @@ class TelegramHandler:
             rating, answer = msg.split(":")
             rating = int(rating)
 
-            self.database.save_mood(rating)
+            self.database.save_mood(rating, datetime.datetime.now())
 
             if is_old:
                 return

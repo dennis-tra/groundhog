@@ -3,7 +3,6 @@ import json
 import datetime
 import dateparser
 import gspread
-import requests
 from typing import List
 from gspread import Worksheet
 from abc import ABC, abstractmethod
@@ -17,11 +16,11 @@ class Database(ABC):
         pass
 
     @abstractmethod
-    def save_mood(self, mood: int, date: datetime.date = datetime.datetime.now()):
+    def save_mood(self, mood: int, date: datetime.date):
         pass
 
     @abstractmethod
-    def save_note(self, note: str, date: datetime.date = datetime.datetime.now()):
+    def save_note(self, note: str, date: datetime.date):
         pass
 
     @abstractmethod
@@ -60,7 +59,7 @@ class GoogleSheet(Database):
 
         return GoogleSheet(spreadsheet_key, mood_worksheet_name, note_worksheet_name, service_account)
 
-    def save_mood(self, mood: int, date: datetime.datetime = datetime.datetime.now()):
+    def save_mood(self, mood: int, date: datetime.datetime):
         row = [date.strftime(self.date_format), mood]
         try:
             self.mood_worksheet.append_row(row, value_input_option="USER_ENTERED")
@@ -69,7 +68,7 @@ class GoogleSheet(Database):
                 self.authenticate()
                 self.save_mood(mood, date)
 
-    def save_note(self, note: str, date: datetime.datetime = datetime.datetime.now()):
+    def save_note(self, note: str, date: datetime.datetime):
         row = [date.strftime(self.date_format), note]
         try:
             self.note_worksheet.append_row(row, value_input_option="USER_ENTERED")
