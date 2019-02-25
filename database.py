@@ -30,21 +30,20 @@ class Database(ABC):
 
 
 class GoogleSheet(Database):
+    credentials: ServiceAccountCredentials
     note_worksheet: Worksheet
     mood_worksheet: Worksheet
 
     def __init__(self, spreadsheet_key: str, mood_worksheet_name: str, note_worksheet_name: str,
                  credentials: ServiceAccountCredentials):
 
-        session = requests.sessions.session()
-        session.headers.update({'Connection': 'Keep-Alive'})
-        gc = gspread.Client(auth=credentials, session=session)
-        gc.login()
+        self.credentials = credentials
+        self.spreadsheet_key = spreadsheet_key
+        self.mood_worksheet_name = mood_worksheet_name
+        self.note_worksheet_name = note_worksheet_name
 
-        spreadsheet = gc.open_by_key(spreadsheet_key)
+        self.authenticate()
 
-        self.mood_worksheet = spreadsheet.worksheet(mood_worksheet_name)
-        self.note_worksheet = spreadsheet.worksheet(note_worksheet_name)
         self.date_format = "%Y-%m-%d %H:%M:%S"
 
     @staticmethod
@@ -63,11 +62,29 @@ class GoogleSheet(Database):
 
     def save_mood(self, mood: int, date: datetime.datetime = datetime.datetime.now()):
         row = [date.strftime(self.date_format), mood]
-        self.mood_worksheet.append_row(row, value_input_option="USER_ENTERED")
+        try:
+            self.mood_worksheet.append_row(row, value_input_option="USER_ENTERED")
+        except gspread.exceptions.APIError as e:
+            if e.response.json()['error']['code'] == 401:
+                self.authenticate()
+                self.save_mood(mood, date)
 
     def save_note(self, note: str, date: datetime.datetime = datetime.datetime.now()):
         row = [date.strftime(self.date_format), note]
-        self.note_worksheet.append_row(row, value_input_option="USER_ENTERED")
+        try:
+            self.note_worksheet.append_row(row, value_input_option="USER_ENTERED")
+        except gspread.exceptions.APIError as e:
+            if e.response.json()['error']['code'] == 401:
+                self.authenticate()
+                self.save_note(note, date)
+
+    def authenticate(self):
+
+        gc = gspread.authorize(self.credentials)
+        spreadsheet = gc.open_by_key(self.spreadsheet_key)
+
+        self.mood_worksheet = spreadsheet.worksheet(self.mood_worksheet_name)
+        self.note_worksheet = spreadsheet.worksheet(self.note_worksheet_name)
 
     def get_moods(self) -> (List[datetime.datetime], List[int]):
 
