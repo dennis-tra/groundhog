@@ -3,6 +3,7 @@ import json
 import datetime
 import dateparser
 import gspread
+import requests
 from typing import List
 from gspread import Worksheet
 from abc import ABC, abstractmethod
@@ -34,7 +35,12 @@ class GoogleSheet(Database):
 
     def __init__(self, spreadsheet_key: str, mood_worksheet_name: str, note_worksheet_name: str,
                  credentials: ServiceAccountCredentials):
-        gc = gspread.authorize(credentials)
+
+        session = requests.sessions.session()
+        session.headers.update({'Connection': 'Keep-Alive'})
+        gc = gspread.Client(auth=credentials, session=session)
+        gc.login()
+
         spreadsheet = gc.open_by_key(spreadsheet_key)
 
         self.mood_worksheet = spreadsheet.worksheet(mood_worksheet_name)
