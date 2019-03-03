@@ -1,7 +1,9 @@
-# Groundhog
+# <img style="padding-right: 12px;" align="left" src="./logo.png" width="31"> Groundhog 
 
-Groundhog day - A telegram bot that sends you day in day out the same questions 
-about your mood and saves it to a Google Spreadsheet.
+Groundhog day - A telegram bot that sends you day in day out the same questions about your mood and saves it to a Google Spreadsheet.
+
+## Demo
+![Animated Demo](showcase.gif)
 
 ## Setup
 The following environment variables need to be set:
