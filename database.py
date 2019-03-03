@@ -64,16 +64,19 @@ class GoogleSheet(Database):
         try:
             self.mood_worksheet.append_row(row, value_input_option="USER_ENTERED")
         except gspread.exceptions.APIError as e:
-            if e.response.json()['error']['code'] == 401:
+            if self.unauthenticated(e):
                 self.authenticate()
                 self.save_mood(mood, date)
+
+    def unauthenticated(self, error: gspread.exceptions.APIError) -> bool:
+        return error.response.json()['error']['code'] == 401
 
     def save_note(self, note: str, date: datetime.datetime):
         row = [date.strftime(self.date_format), note]
         try:
             self.note_worksheet.append_row(row, value_input_option="USER_ENTERED")
         except gspread.exceptions.APIError as e:
-            if e.response.json()['error']['code'] == 401:
+            if self.unauthenticated(e):
                 self.authenticate()
                 self.save_note(note, date)
 
@@ -87,8 +90,13 @@ class GoogleSheet(Database):
 
     def get_moods(self) -> (List[datetime.datetime], List[int]):
 
-        dates = list(map(lambda d: dateparser.parse(d), self.mood_worksheet.col_values(1)))
-        moods = list(map(int, self.mood_worksheet.col_values(2)))
+        try:
+            dates = list(map(lambda d: dateparser.parse(d), self.mood_worksheet.col_values(1)))
+            moods = list(map(int, self.mood_worksheet.col_values(2)))
+        except gspread.exceptions.APIError as e:
+            if self.unauthenticated(e):
+                self.authenticate()
+                return self.get_moods()
 
         return dates, moods
 
