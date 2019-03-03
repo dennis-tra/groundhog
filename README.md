@@ -1,12 +1,32 @@
 # <img style="padding-right: 12px;" align="left" src="./logo.png" width="31"> Groundhog 
 
-Groundhog day - A telegram bot that sends you day in day out the same questions about your mood and saves it to a Google Spreadsheet.
+> Groundhog Day is a 1993 American comedy fantasy film [...]. It stars Bill Murray [...] who, during an assignment covering the annual Groundhog Day event, is caught in a time loop, repeatedly reliving the same day. - *[Wikipedia (Groundhog day)](https://en.wikipedia.org/wiki/Groundhog_Day_(film))*
+
+**Groundhog** is a telegram bot that will send three daily reminders to track your current mood. 
+
+* One in the morning
+* One around noon
+* One before going to bed
+
+The mood rating will be a number between 0 and 5 and synced to a Google Spreadsheet. The bot makes use of a preconfigured keyboard in telegram that allows to handily enter your current mood. 
+
+You can enter your mood any time you like. Same goes for arbitrary notes concerning your mood. Theses are synced to separate worksheet in the same Google Spreadsheet.
 
 ## Demo
 ![Animated Demo](showcase.gif)
 
+## Credits
+
+This project is heavily influenced by [krausefx/mood](https://github.com/KrauseFx/mood). Major differences lie in the programming language used (Python vs. Ruby) and the database backend. 
+
+While it's not completely clear what exactly [krausefx/mood](https://github.com/KrauseFx/mood) is using as a database it'll certainly be some kind of relational database. Groundhog on the other hand uses Google Sheets.
+
 ## Setup
-The following environment variables need to be set:
+You can pull the latest docker image via
+```
+docker pull dennistra/groundhog:latest
+```
+To run a container make the following environment variables accessible inside the container:
 ```
 TELEGRAM_API_TOKEN=
 TELEGRAM_CHAT_ID=
@@ -14,6 +34,10 @@ SPREADSHEET_KEY=
 MOOD_WORKSHEET_NAME=
 NOTE_WORKSHEET_NAME=
 SERVICE_ACCOUNT_CREDENTIALS=
+```
+Rename the `.env.example` file to `.env` and fill in the environment variables. Now run the container with the following command:
+```
+docker run --env-file .env dennistra/groundhog:latest
 ```
 
 The `SERVICE_ACCOUNT_CREDENTIALS` json has the following format:
