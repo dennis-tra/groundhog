@@ -1,5 +1,4 @@
 import os
-import time
 import datetime
 import logging
 from telegram import Bot, ReplyKeyboardMarkup, Update
@@ -127,9 +126,6 @@ class TelegramHandler:
 
 
 def main():
-    os.environ['TZ'] = 'Europe/Berlin'
-    time.tzset()
-
     load_dotenv()
     TelegramHandler()
 
