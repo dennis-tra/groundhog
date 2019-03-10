@@ -57,7 +57,7 @@ class TelegramHandler:
 
     def stats(self, bot: Bot, update: Update):
         update.message.reply_text(f"Hang tight I'm calculating your statistics... 🧮")
-        moods = self.database.get_moods()
+        dates, moods = self.database.get_moods()
 
         update.message.reply_text(f"Total tracked moods: {len(moods)}")
 
